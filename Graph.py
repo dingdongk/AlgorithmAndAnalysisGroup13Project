@@ -58,9 +58,95 @@ def load_graph_txt(filename="graph1.txt"):
     return g
 
 graph = load_graph_txt()
-print(graph.adj["node_1"][1].v)
+print(graph.adj["node_1"][1].v) #comment above and this and remove bottom comment to use
+# print(f"Verified connection: {graph.adj['node_0_0'][0].v}")
+class MinHeap:
+    def __init__(self):
+        self.heap = []
 
+    def insert(self, item):
+        # item should be: {"key": priority_value, "node": node_name, ...}
+        self.heap.append(item)
+        self.heapify_up(len(self.heap) - 1)
 
+    def extract_min(self):
+        if len(self.heap) == 0:
+            return None
+        if len(self.heap) == 1:
+            return self.heap.pop()
 
+        min_value = self.heap[0]
+        self.heap[0] = self.heap.pop()  # Remove last and move to root
+        self.heapify_down(0)
+        return min_value
+
+    def is_empty(self):
+        return len(self.heap) == 0
+
+    def heapify_up(self, index):
+        while index > 0:
+            parent_index = (index - 1) // 2
+            if self.heap[index]["key"] < self.heap[parent_index]["key"]:
+                self.heap[index], self.heap[parent_index] = self.heap[parent_index], self.heap[index]
+                index = parent_index
+            else:
+                break
+
+    def heapify_down(self, index):
+        smallest = index
+        left = 2 * index + 1
+        right = 2 * index + 2
+
+        if left < len(self.heap) and self.heap[left]["key"] < self.heap[smallest]["key"]:
+            smallest = left
+        if right < len(self.heap) and self.heap[right]["key"] < self.heap[smallest]["key"]:
+            smallest = right
+
+        if smallest != index:
+            self.heap[index], self.heap[smallest] = self.heap[smallest], self.heap[index]
+            self.heapify_down(smallest)
+def find_shortest_time_path(graph, start, end, start_hour):
+    min_heap=MinHeap()
+    min_heap.insert({"key": 0, "node": start, "path": [start], "dist": 0})
+    visited_costs = {start: 0}
+
+    while not min_heap.is_empty():
+        curr_data = min_heap.extract_min()
+        curr_time = curr_data["key"]
+        curr_node = curr_data["node"]
+        path = curr_data["path"]
+        curr_dist = curr_data["dist"]
+
+        if curr_node == end_node:
+            return {"path": path, "time": curr_time, "dist": curr_dist}
+
+        if curr_node in graph.adj:
+            for edge in graph.adj[curr_node]:
+                arrival_h = int((start_hour + curr_time) % 24)
+                travel_cost = edge.time_list[arrival_h]
+
+                new_time = curr_time + travel_cost
+                if edge.v not in visited_costs or new_time < visited_costs[edge.v]:
+                    visited_costs[edge.v] = new_time
+                    # Inserting a dictionary to match your new MinHeap
+                    min_heap.insert({
+                        "key": new_time,
+                        "node": edge.v,
+                        "path": path + [edge.v],
+                        "dist": curr_dist + edge.distance
+                    })
+    return None
+my_graph = load_graph_txt("grid_graph_test.txt")
+start_node = "node_0_0"  
+end_node = "node_49_19"  
+hour = 12
+
+result = find_shortest_time_path(my_graph, start_node, end_node, hour)
+if result:
+    print(f"Nodes visited: {len(result['path'])}")
+    print(f"Total Time: {round(result['time'], 2)} minutes")
+    print(f"Total Distance: {result['dist']} km")
+else:
+    print("No path found.")
 
 
