@@ -58,14 +58,13 @@ def load_graph_txt(filename="graph1.txt"):
     return g
 
 graph = load_graph_txt()
-print(graph.adj["node_1"][1].v) #comment above and this and remove bottom comment to use
-# print(f"Verified connection: {graph.adj['node_0_0'][0].v}")
+print(graph.adj["node_1"][1].v) # old graph method, remove if needed
+print(f"Verified connection: {graph.adj['node_0_0'][0].v}")
 class MinHeap:
     def __init__(self):
         self.heap = []
 
     def insert(self, item):
-        # item should be: {"key": priority_value, "node": node_name, ...}
         self.heap.append(item)
         self.heapify_up(len(self.heap) - 1)
 
@@ -76,7 +75,7 @@ class MinHeap:
             return self.heap.pop()
 
         min_value = self.heap[0]
-        self.heap[0] = self.heap.pop()  # Remove last and move to root
+        self.heap[0] = self.heap.pop()  
         self.heapify_down(0)
         return min_value
 
@@ -128,7 +127,6 @@ def find_shortest_time_path(graph, start, end, start_hour):
                 new_time = curr_time + travel_cost
                 if edge.v not in visited_costs or new_time < visited_costs[edge.v]:
                     visited_costs[edge.v] = new_time
-                    # Inserting a dictionary to match your new MinHeap
                     min_heap.insert({
                         "key": new_time,
                         "node": edge.v,
