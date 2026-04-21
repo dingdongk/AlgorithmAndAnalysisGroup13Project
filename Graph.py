@@ -44,9 +44,9 @@ class Graph:
 def load_graph_txt(filename="graph1.txt"):
     g = Graph()
 
-    with open(filename, "r") as f:
+    with open(filename, "r",encoding="utf-8") as f:
         for line in f:
-            parts = line.strip().split()
+            parts = line.strip().split('|')
 
             u = parts[0]
             v = parts[1]
@@ -57,9 +57,6 @@ def load_graph_txt(filename="graph1.txt"):
 
     return g
 
-graph = load_graph_txt()
-print(graph.adj["node_1"][1].v) # old graph method, remove if needed
-print(f"Verified connection: {graph.adj['node_0_0'][0].v}")
 class MinHeap:
     def __init__(self):
         self.heap = []
@@ -116,7 +113,7 @@ def find_shortest_time_path(graph, start, end, start_hour):
         path = curr_data["path"]
         curr_dist = curr_data["dist"]
 
-        if curr_node == end_node:
+        if curr_node == end:
             return {"path": path, "time": curr_time, "dist": curr_dist}
 
         if curr_node in graph.adj:
@@ -134,9 +131,9 @@ def find_shortest_time_path(graph, start, end, start_hour):
                         "dist": curr_dist + edge.distance
                     })
     return None
-my_graph = load_graph_txt("grid_graph_test.txt")
-start_node = "node_0_0"  
-end_node = "node_49_19"  
+my_graph = load_graph_txt("graph_by_road.txt")
+start_node = "bùi thị xuân"  
+end_node = "văn cao"  
 hour = 12
 
 result = find_shortest_time_path(my_graph, start_node, end_node, hour)
@@ -144,6 +141,7 @@ if result:
     print(f"Nodes visited: {len(result['path'])}")
     print(f"Total Time: {round(result['time'], 2)} minutes")
     print(f"Total Distance: {result['dist']} km")
+    print(f"Route: {' ➔ '.join(result['path'])}")
 else:
     print("No path found.")
 
