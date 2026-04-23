@@ -131,7 +131,7 @@ def find_shortest_time_path(graph, start, end, start_hour):
                         "dist": curr_dist + edge.distance
                     })
     return None
-my_graph = load_graph_txt("graph_by_road.txt")
+my_graph = load_graph_txt("graph_by_road")
 start_node = "bùi thị xuân"  
 end_node = "văn cao"  
 hour = 12
