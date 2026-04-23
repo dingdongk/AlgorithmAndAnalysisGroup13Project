@@ -1,0 +1,14 @@
+# Format:
+# source|destination|start_hour|avoid_nodes|avoid_edges
+# Leave avoid_nodes or avoid_edges empty if not used.
+
+alexandre de rhodes|bờ tuyến|12||
+bờ sông|bờ tuyến|8||
+alexandre de rhodes|cầu rạch lồng đèn|18||
+alexandre de rhodes|bờ tuyến|12|bờ sông|
+alexandre de rhodes|bờ tuyến|12||alexandre de rhodes-bờ sông
+cầu rạch lồng đèn|bờ tuyến|9||
+bờ sông|cầu rạch lồng đèn|17||
+alexandre de rhodes|bờ sông|7||
+bờ tuyến|alexandre de rhodes|20||
+cầu rạch lồng đèn|alexandre de rhodes|6||

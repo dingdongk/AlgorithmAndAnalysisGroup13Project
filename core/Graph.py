@@ -1,154 +1,223 @@
-import random
-
+# core/Graph.py
 
 class Edge:
     def __init__(self, v, distance, time_list):
         self.v = v
-        self.distance = distance  # int
-        self.time_list = time_list  # int
+        self.distance = distance
+        self.time_list = time_list
 
-# =========================
-# Graph class
-# =========================
+    def __repr__(self):
+        return f"Edge(v={self.v}, distance={self.distance})"
 
 
 class Graph:
     def __init__(self):
+        # adjacency list:
+        # {
+        #   "A": [Edge("B", 5, [...]), Edge("C", 2, [...])],
+        #   ...
+        # }
         self.adj = {}
+        self._edge_count = 0
 
-    def add_edge(self, u, v, distance=None, time_list=None):
+    def add_node(self, u):
+        if u not in self.adj:
+            self.adj[u] = []
+
+    def add_edge(self, u, v, distance, time_list, undirected=True):
+        """
+        Add an edge u -> v.
+        If undirected=True, also add v -> u.
+
+        Constraints:
+        - u != v
+        - distance >= 0
+        - len(time_list) == 24
+        """
         if u == v:
             return
 
-        if distance is None:
-            distance = random.randint(1, 10)
+        if distance < 0:
+            raise ValueError("Distance must be non-negative.")
 
-        if time_list is None:
-            time_list = []
-            for h in range(24):
-                if 7 <= h <= 9 or 17 <= h <= 19:
-                    factor = random.uniform(1.3, 1.6)
-                else:
-                    factor = random.uniform(0.8, 1.2)
-                time_list.append(distance * factor)
+        if len(time_list) != 24:
+            raise ValueError("Each edge must have exactly 24 hourly time values.")
 
-        if u not in self.adj:
-            self.adj[u] = []
-        if v not in self.adj:
-            self.adj[v] = []
+        self.add_node(u)
+        self.add_node(v)
 
-        if not any(e.v == v for e in self.adj[u]):
+        if not self._has_edge(u, v):
             self.adj[u].append(Edge(v, distance, time_list))
-        if not any(e.v == u for e in self.adj[v]):
-            self.adj[v].append(Edge(u, distance, time_list)
-                               )  # symmetric distance
+            self._edge_count += 1
+
+        if undirected and not self._has_edge(v, u):
+            # copy list to avoid accidental shared mutation
+            self.adj[v].append(Edge(u, distance, list(time_list)))
+            self._edge_count += 1
+
+    def _has_edge(self, u, v):
+        if u not in self.adj:
+            return False
+        for edge in self.adj[u]:
+            if edge.v == v:
+                return True
+        return False
+
+    def get_neighbors(self, u):
+        return self.adj.get(u, [])
+
+    def has_node(self, u):
+        return u in self.adj
+
+    def nodes(self):
+        return list(self.adj.keys())
+
+    def node_count(self):
+        return len(self.adj)
+
+    def edge_count(self):
+        return self._edge_count
+
+    def get_edge(self, u, v):
+        """
+        Return the Edge object from u to v, or None if not found.
+        """
+        for edge in self.adj.get(u, []):
+            if edge.v == v:
+                return edge
+        return None
+
+    def __repr__(self):
+        return f"Graph(nodes={self.node_count()}, directed_edges={self.edge_count()})"
 
 
-def load_graph_txt(filename="graph1.txt"):
-    g = Graph()
+def _parse_graph_line(line):
+    """
+    Supports two formats:
+
+    1) Pipe-separated:
+       u|v|distance|t1,t2,...,t24
+
+    2) Space-separated:
+       u v distance t1,t2,...,t24
+       This assumes node names do not contain spaces.
+    """
+    line = line.strip()
+    if not line:
+        return None
+
+    if "|" in line:
+        parts = line.split("|")
+    else:
+        parts = line.split()
+
+    if len(parts) != 4:
+        raise ValueError(f"Invalid graph line format: {line}")
+
+    u = parts[0].strip()
+    v = parts[1].strip()
+    distance = int(parts[2].strip())
+    time_list = [int(x.strip()) for x in parts[3].split(",")]
+
+    if len(time_list) != 24:
+        raise ValueError(f"Edge ({u}, {v}) does not have 24 time values.")
+
+    return u, v, distance, time_list
+
+
+def load_graph_txt(filename, undirected=True):
+    """
+    Load graph from a text file.
+
+    File line formats supported:
+    - u|v|distance|t1,t2,...,t24
+    - u v distance t1,t2,...,t24
+
+    Returns:
+        Graph
+    """
+    graph = Graph()
 
     with open(filename, "r", encoding="utf-8") as f:
-        for line in f:
-            parts = line.strip().split('|')
+        for line_number, raw_line in enumerate(f, start=1):
+            stripped = raw_line.strip()
 
-            u = parts[0]
-            v = parts[1]
-            distance = int(parts[2])
-            time_list = list(map(int, parts[3].split(",")))
+            if not stripped:
+                continue
 
-            g.add_edge(u, v, distance, time_list)
+            # allow simple comment lines
+            if stripped.startswith("#"):
+                continue
 
-    return g
+            try:
+                parsed = _parse_graph_line(stripped)
+                if parsed is None:
+                    continue
 
+                u, v, distance, time_list = parsed
+                graph.add_edge(u, v, distance, time_list, undirected=undirected)
 
-class MinHeap:
-    def __init__(self):
-        self.heap = []
+            except Exception as e:
+                raise ValueError(f"Error parsing line {line_number}: {e}")
 
-    def insert(self, item):
-        self.heap.append(item)
-        self.heapify_up(len(self.heap) - 1)
-
-    def extract_min(self):
-        if len(self.heap) == 0:
-            return None
-        if len(self.heap) == 1:
-            return self.heap.pop()
-
-        min_value = self.heap[0]
-        self.heap[0] = self.heap.pop()
-        self.heapify_down(0)
-        return min_value
-
-    def is_empty(self):
-        return len(self.heap) == 0
-
-    def heapify_up(self, index):
-        while index > 0:
-            parent_index = (index - 1) // 2
-            if self.heap[index]["key"] < self.heap[parent_index]["key"]:
-                self.heap[index], self.heap[parent_index] = self.heap[parent_index], self.heap[index]
-                index = parent_index
-            else:
-                break
-
-    def heapify_down(self, index):
-        smallest = index
-        left = 2 * index + 1
-        right = 2 * index + 2
-
-        if left < len(self.heap) and self.heap[left]["key"] < self.heap[smallest]["key"]:
-            smallest = left
-        if right < len(self.heap) and self.heap[right]["key"] < self.heap[smallest]["key"]:
-            smallest = right
-
-        if smallest != index:
-            self.heap[index], self.heap[smallest] = self.heap[smallest], self.heap[index]
-            self.heapify_down(smallest)
+    return graph
 
 
-def find_shortest_time_path(graph, start, end, start_hour):
-    min_heap = MinHeap()
-    min_heap.insert({"key": 0, "node": start, "path": [start], "dist": 0})
-    visited_costs = {start: 0}
+def normalize_edge(u, v, undirected=True):
+    """
+    Standardize edge representation for avoidance checks.
 
-    while not min_heap.is_empty():
-        curr_data = min_heap.extract_min()
-        curr_time = curr_data["key"]
-        curr_node = curr_data["node"]
-        path = curr_data["path"]
-        curr_dist = curr_data["dist"]
-
-        if curr_node == end:
-            return {"path": path, "time": curr_time, "dist": curr_dist}
-
-        if curr_node in graph.adj:
-            for edge in graph.adj[curr_node]:
-                arrival_h = int((start_hour + curr_time) % 24)
-                travel_cost = edge.time_list[arrival_h]
-
-                new_time = curr_time + travel_cost
-                if edge.v not in visited_costs or new_time < visited_costs[edge.v]:
-                    visited_costs[edge.v] = new_time
-                    min_heap.insert({
-                        "key": new_time,
-                        "node": edge.v,
-                        "path": path + [edge.v],
-                        "dist": curr_dist + edge.distance
-                    })
-    return None
+    If undirected=True:
+        ('B', 'A') and ('A', 'B') become the same tuple.
+    """
+    if undirected:
+        return tuple(sorted((u, v)))
+    return (u, v)
 
 
-my_graph = load_graph_txt("graph_by_road.txt")
-start_node = "bùi thị xuân"
-end_node = "văn cao"
-hour = 12
+def parse_avoid_nodes(text):
+    """
+    Parse avoid nodes from a comma-separated string.
+    Example:
+        "A,B,C" -> {"A", "B", "C"}
+        "" -> set()
+    """
+    if text is None:
+        return set()
 
-result = find_shortest_time_path(my_graph, start_node, end_node, hour)
-if result:
-    print(f"Nodes visited: {len(result['path'])}")
-    print(f"Total Time: {round(result['time'], 2)} minutes")
-    print(f"Total Distance: {result['dist']} km")
-    print(f"Route: {' ➔ '.join(result['path'])}")
-else:
-    print("No path found.")
+    text = text.strip()
+    if not text:
+        return set()
+
+    return {item.strip() for item in text.split(",") if item.strip()}
+
+
+def parse_avoid_edges(text, undirected=True):
+    """
+    Parse avoid edges from a comma-separated list like:
+        "A-B,B-C"
+
+    Returns:
+        set of normalized edge tuples
+    """
+    if text is None:
+        return set()
+
+    text = text.strip()
+    if not text:
+        return set()
+
+    result = set()
+    items = [item.strip() for item in text.split(",") if item.strip()]
+
+    for item in items:
+        if "-" not in item:
+            raise ValueError(f"Invalid edge format: {item}. Use A-B")
+        u, v = item.split("-", 1)
+        u = u.strip()
+        v = v.strip()
+        if not u or not v:
+            raise ValueError(f"Invalid edge format: {item}. Use A-B")
+        result.add(normalize_edge(u, v, undirected=undirected))
+
+    return result
