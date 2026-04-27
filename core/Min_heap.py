@@ -1,31 +1,22 @@
-# core/Min_heap.py
-
 class MinHeap:
-    """
-    A simple custom min-heap.
 
-    Items inserted into the heap must support comparison with < .
-    In this project we will usually store tuples like:
-        (priority, counter, node)
-    or
-        (priority, counter, current_cost, node)
-
-    The extra counter helps avoid comparison problems when priorities tie.
-    """
-
+    # Constructors
     def __init__(self):
         self.heap = []
 
     def __len__(self):
         return len(self.heap)
 
+    # Check if length is empty
     def is_empty(self):
         return len(self.heap) == 0
 
+    # Insert item to the end, fixing the heap by moving it up
     def push(self, item):
         self.heap.append(item)
         self._heapify_up(len(self.heap) - 1)
 
+    # Returns smallest element
     def pop(self):
         if not self.heap:
             return None
@@ -38,11 +29,13 @@ class MinHeap:
         self._heapify_down(0)
         return minimum
 
+    # Returns smallest element without removing it
     def peek(self):
         if not self.heap:
             return None
         return self.heap[0]
-
+        
+    # Restores the heap after inserting a new element
     def _heapify_up(self, index):
         while index > 0:
             parent = (index - 1) // 2
@@ -52,6 +45,7 @@ class MinHeap:
             else:
                 break
 
+    # Restores heap after removing the root
     def _heapify_down(self, index):
         size = len(self.heap)
 
