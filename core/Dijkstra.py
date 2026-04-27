@@ -237,24 +237,22 @@ def dijkstra_time(graph, start, end, start_hour, avoid_nodes=None, avoid_edges=N
 
 
 def enrich_distance_result_with_time(graph, result, start_hour):
-    """
-    For a distance-optimal result, compute its actual time.
-    """
+    # Calculates the expected travel time for a route that was originally optimized for the shortest physical distance.
     if result is None:
         return None
 
     path = result["path"]
+    # Apply the time-dependent traffic model to the distance-based route
     result["total_time"] = calculate_path_time(graph, path, start_hour)
     return result
 
 
 def enrich_time_result_with_distance(graph, result):
-    """
-    For a time-optimal result, ensure distance is filled.
-    """
+    # Calculates the total physical mileage for a route that was originally optimized for the fastest arrival time.
     if result is None:
         return None
 
     path = result["path"]
+    # Sum the physical road segments of the time-optimized route
     result["total_distance"] = calculate_path_distance(graph, path)
     return result
