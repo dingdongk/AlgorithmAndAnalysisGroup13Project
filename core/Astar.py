@@ -54,63 +54,86 @@ def dijkstra_all_distances(graph, start, avoid_nodes=None, avoid_edges=None):
 
 def choose_landmarks(graph, k=4):
     """
-    Choose landmark nodes for ALT.
+    To choose the landmarks (the nodes) for the graph, we will apply k-center expression
+    new_Landmark = Max(Min(distance(Landmark, Vertex))) with Landmark ∈ Landmarks
+    Vertex is from all vertices of the graph
+    Purpose: Using greedy approximation agolrithm to find to be farthest from the landmark inside
+    the list of landamarks.
+    landmarks = ['A', 'B'] find the new landmark farthest from A and B
+    :param k is the number of landmarks user want to find
 
-    Simple farthest-point style heuristic:
-    1. pick the first node
-    2. run Dijkstra to find the farthest reachable node
-    3. repeat from the newest farthest node until k landmarks
-
-    This is simple and suitable for your project.
     """
-    nodes = graph.nodes()
+    nodes = list(graph.nodes())
     if not nodes:
         return []
 
-    if k <= 0:
-        return []
+    landmarks = [nodes[0]]
 
-    landmarks = []
-
-    # start with the first node in the graph
-    current = nodes[0]
-    landmarks.append(current)
-
+    # min(k,len(nodes)) ensure that the component inside landmarks not reach out the node of the graph
+    # for example k = 4 but graph only have 3 node which mean len(nodes) = 3
+    # the landmarks can choose 3 landmarks only
+    # if we set like this (while len(landmarks) < k = 4:) it will become infinite loop
     while len(landmarks) < min(k, len(nodes)):
-        dist_map = dijkstra_all_distances(graph, current)
+        # For easy to understand: if k = 2 or 1, the first landmark always is node[0]
+        # If k = 2, the second landmark is choosing the largest distance from the first landmark
+        # Follow the expression: before we have the second landmark, we only have one landmark
+        # The expression will be reduced [new_landmark = Max(landmark to all vertices of the graph)]
+        # For example: this is the nodes of the graph ['J', 'B', 'G', 'T', 'E', 'D', 'A', 'H', 'F', 'L', 'C']
+        # First landmark J:{'J': 0, 'B': 10, 'G': 5, 'T': 8, 'E': 12, 'D': 16, 'A': 12, 'H': 26, 'F': 18, 'L': 27, 'C': 15}
+        # The second just choose the farthest distance from landmark(j) which is L
+        # L:{'J': 27, 'B': 17, 'G': 26, 'T': 29, 'E': 25, 'D': 11, 'A': 15, 'H': 15, 'F': 9, 'L': 0, 'C': 15}
+        # From the third landmark, we will follow the original expression
+        # new_Landmark = Max(Min(distance(Landmark, vertex))) with Landmark ∈ Landmarks["J","L"]
+        # The function will be Max(Min(distance('J','J'), distance('L','J')), Min(distance('J','B'),distance('L','B')), Min(...), ...)
+        # It will stop when we finish find all the node
+        # After that we have new_landmark is H
+        # If we continue, the number of distance from landmark to vertex inside Min() will increase equaly with number of landmark at the moment
+        # new_Landmark = Max(Min(distance(Landmark to all Vertex of the graph))) with Landmark ∈ Landmarks["J","L","H"]
+        # Max(Min(distance('J','J'), distance('L','J'), distance('H','J')), Min(distance('J','B'),distance('L','B'), distance('H','B')), Min(...), ...)
 
-        if not dist_map:
-            # fallback: add first not-yet-used node
-            for node in nodes:
-                if node not in landmarks:
-                    landmarks.append(node)
-                    current = node
-                    break
-            continue
 
-        # farthest node not already used as landmark
-        farthest_node = None
-        farthest_dist = -1
+        best_node = None
+        best_score = -1
 
-        for node, d in dist_map.items():
-            if node not in landmarks and d > farthest_dist:
-                farthest_dist = d
-                farthest_node = node
+        for node in nodes:
 
-        if farthest_node is None:
-            # fallback
-            for node in nodes:
-                if node not in landmarks:
-                    farthest_node = node
-                    break
+            #Skip the node become landmarks already
+            if node in landmarks:
+                continue
 
-        if farthest_node is None:
+
+            min_distance_to_landmark = float('inf')
+
+
+            # Greedy Approximation algorithm
+            for lm in landmarks:
+
+                dist_map = dijkstra_all_distances(graph, lm) # return such as {'j':0, 'B':10,...}
+                distance = dist_map.get(node, float('inf')) # if don't have the node, return infinite. But the graph is connected so it cannot happen
+                # Finding the shortest distance of each landmark to current node of the graph
+                # for example node = B, landmarks = ['J','L']
+                # it will compare the minimum distance of (J to B) and (L to B)
+                # The minium is used to calculate the coverage (distance) of the landmark with that node
+                # The smaller of distance mean the landmark coverage that node good
+                if distance < min_distance_to_landmark:
+                    min_distance_to_landmark = distance
+
+
+            score = min_distance_to_landmark
+            # Finding the largest distance (worst coverage)
+            # Get the node that landmark in landmarks['j', 'L'] haven't coverage good enought to become new landmark
+            if score > best_score:
+                best_score = score
+                best_node = node
+
+
+        if best_node is None:
             break
 
-        landmarks.append(farthest_node)
-        current = farthest_node
+        landmarks.append(best_node)
 
     return landmarks
+
 
 
 def preprocess_landmarks(graph, landmarks):
