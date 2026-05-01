@@ -214,6 +214,19 @@ def compare_single_query_correctness(graph, query, landmark_distances):
     else:
         print("Distance results do NOT match.")
 
+def run_multiple_times(func, runs=5):
+    total_runtime = 0.0
+    total_visited = 0
+
+    for _ in range(runs):
+        result = func()
+        total_runtime += result["total_runtime_sec"]
+        total_visited += result["average_visited_nodes"]
+
+    return {
+        "avg_runtime_sec": total_runtime / runs,
+        "avg_visited_nodes": total_visited / runs,
+    }
 
 def main():
     print("Loading graph...")
@@ -224,52 +237,48 @@ def main():
     queries = load_queries(QUERY_FILE)
     print(f"Loaded {len(queries)} queries.")
 
+    # ===== ALT loading (preloaded scenario) =====
     if os.path.exists(ALT_DATA_FILE):
         print("\nLoading cached ALT data...")
-        load_start = time.perf_counter()
         landmarks, landmark_distances = load_landmark_data(ALT_DATA_FILE)
-        load_end = time.perf_counter()
-        preprocess_time = 0.0
-        load_time = load_end - load_start
-
         print("Loaded landmarks:", landmarks)
-        print(f"ALT cache load time (sec): {load_time:.6f}")
-        print("ALT preprocessing time (sec): 0.000000 (cached)")
     else:
-        print("\nSelecting landmarks for ALT...")
+        print("\nPreprocessing ALT data...")
         landmarks = choose_landmarks(graph, k=LANDMARK_COUNT)
-        print("Landmarks:", landmarks)
-
-        print("\nPreprocessing landmark distances...")
-        preprocess_start = time.perf_counter()
         landmark_distances = preprocess_landmarks(graph, landmarks)
-        preprocess_end = time.perf_counter()
-        preprocess_time = preprocess_end - preprocess_start
-
         save_landmark_data(ALT_DATA_FILE, landmarks, landmark_distances)
+        print("ALT data saved.")
 
-        print(f"ALT preprocessing time (sec): {preprocess_time:.6f}")
-        print(f"ALT data saved to: {ALT_DATA_FILE}")
+    # ===== RUN BENCHMARK MULTIPLE TIMES =====
+    RUNS = 5
+    print(f"\nRunning each benchmark {RUNS} times...\n")
 
-    if queries:
-        compare_single_query_correctness(graph, queries[0], landmark_distances)
+    dijkstra_stats = run_multiple_times(
+        lambda: benchmark_distance_dijkstra(graph, queries),
+        runs=RUNS
+    )
 
-    distance_dijkstra_result = benchmark_distance_dijkstra(graph, queries)
-    distance_alt_result = benchmark_distance_alt(graph, queries, landmark_distances)
-    time_dijkstra_result = benchmark_time_dijkstra(graph, queries)
+    alt_stats = run_multiple_times(
+        lambda: benchmark_distance_alt(graph, queries, landmark_distances),
+        runs=RUNS
+    )
 
-    print_benchmark_result(distance_dijkstra_result)
-    print_benchmark_result(distance_alt_result)
-    print_benchmark_result(time_dijkstra_result)
+    time_stats = run_multiple_times(
+    lambda: benchmark_time_dijkstra(graph, queries),
+    runs=RUNS
+    )
+    # ===== PRINT RESULTS =====
+    print("\n=== FINAL AVERAGED RESULTS ===")
 
-    print("\n=== Summary ===")
-    print("Use these results in your empirical evaluation section.")
-    print("Remember to discuss:")
-    print("- ALT preprocessing cost")
-    print("- ALT distance-query speed vs Dijkstra distance-query speed")
-    print("- Dijkstra time-query performance")
-    print("- Whether ALT gives enough improvement on your graph size")
+    print("\nDijkstra (distance):")
+    print(f"Average runtime: {dijkstra_stats['avg_runtime_sec']:.6f} sec")
+    print(f"Average visited nodes: {dijkstra_stats['avg_visited_nodes']:.2f}")
 
+    print("\nALT (distance):")
+    print(f"Average runtime: {alt_stats['avg_runtime_sec']:.6f} sec")
+    print(f"Average visited nodes: {alt_stats['avg_visited_nodes']:.2f}")
 
+    print("\nDijkstra (time):")
+    print(f"Average runtime: {time_stats['avg_runtime_sec']:.6f} sec")
 if __name__ == "__main__":
     main()

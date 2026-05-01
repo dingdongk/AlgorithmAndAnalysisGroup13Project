@@ -1,5 +1,3 @@
-# core/Graph.py
-
 class Edge:
     def __init__(self, v, distance, time_list):
         self.v = v
@@ -9,14 +7,9 @@ class Edge:
     def __repr__(self):
         return f"Edge(v={self.v}, distance={self.distance})"
 
-
 class Graph:
     def __init__(self):
-        # adjacency list:
-        # {
-        #   "A": [Edge("B", 5, [...]), Edge("C", 2, [...])],
-        #   ...
-        # }
+        # Adjacency list: node to list of edges
         self.adj = {}
         self._edge_count = 0
 
@@ -25,15 +18,7 @@ class Graph:
             self.adj[u] = []
 
     def add_edge(self, u, v, distance, time_list, undirected=True):
-        """
-        Add an edge u -> v.
-        If undirected=True, also add v -> u.
-
-        Constraints:
-        - u != v
-        - distance >= 0
-        - len(time_list) == 24
-        """
+        # Add edge with distance and 24-hour time list
         if u == v:
             return
 
@@ -51,7 +36,7 @@ class Graph:
             self._edge_count += 1
 
         if undirected and not self._has_edge(v, u):
-            # copy list to avoid accidental shared mutation
+            # Copy list to avoid accidental shared mutation
             self.adj[v].append(Edge(u, distance, list(time_list)))
             self._edge_count += 1
 
@@ -79,29 +64,38 @@ class Graph:
         return self._edge_count
 
     def get_edge(self, u, v):
-        """
-        Return the Edge object from u to v, or None if not found.
-        """
+        # Return edge from u to v
         for edge in self.adj.get(u, []):
             if edge.v == v:
                 return edge
         return None
+
+    def update_edge_time_list(self, u, v, new_time_list, undirected=True):
+        # Update time list for an edge (used for time list updates)
+        if len(new_time_list) != 24:
+            raise ValueError("Time list must contain exactly 24 values.")
+
+        edge_uv = self.get_edge(u, v)
+        if edge_uv is None:
+            raise ValueError(f"Edge not found: {u} -> {v}")
+
+        edge_uv.time_list = list(new_time_list)
+
+        if undirected:
+            edge_vu = self.get_edge(v, u)
+            if edge_vu is not None:
+                edge_vu.time_list = list(new_time_list)
 
     def __repr__(self):
         return f"Graph(nodes={self.node_count()}, directed_edges={self.edge_count()})"
 
 
 def _parse_graph_line(line):
-    """
-    Supports two formats:
-
-    1) Pipe-separated:
-       u|v|distance|t1,t2,...,t24
-
-    2) Space-separated:
-       u v distance t1,t2,...,t24
-       This assumes node names do not contain spaces.
-    """
+    # Parsing for graph
+    #Supports two formats:
+       # u|v|distance|t1,t2,...,t24
+       # u v distance t1,t2,...,t24
+       # This assumes node names do not contain spaces.
     line = line.strip()
     if not line:
         return None
@@ -124,18 +118,30 @@ def _parse_graph_line(line):
 
     return u, v, distance, time_list
 
+def save_graph_txt(graph, filename):
+    # Save graph back to pipe-separated text format:
+    # u|v|distance|t0,t1,...,t23
+    saved_edges = set()
+
+    with open(filename, "w", encoding="utf-8") as f:
+        for u in graph.nodes():
+            for edge in graph.get_neighbors(u):
+                v = edge.v
+                key = tuple(sorted((u, v)))
+
+                if key in saved_edges:
+                    continue
+
+                saved_edges.add(key)
+
+                time_text = ",".join(str(x) for x in edge.time_list)
+                f.write(f"{u}|{v}|{edge.distance}|{time_text}\n")
 
 def load_graph_txt(filename, undirected=True):
-    """
-    Load graph from a text file.
-
-    File line formats supported:
-    - u|v|distance|t1,t2,...,t24
-    - u v distance t1,t2,...,t24
-
-    Returns:
-        Graph
-    """
+    # Load graph from a text file.
+    # Supports 2 formats
+    # u|v|distance|t1,t2,...,t24
+    # u v distance t1,t2,...,t24
     graph = Graph()
 
     with open(filename, "r", encoding="utf-8") as f:
@@ -145,7 +151,7 @@ def load_graph_txt(filename, undirected=True):
             if not stripped:
                 continue
 
-            # allow simple comment lines
+            # Allow simple comment lines
             if stripped.startswith("#"):
                 continue
 
@@ -164,24 +170,19 @@ def load_graph_txt(filename, undirected=True):
 
 
 def normalize_edge(u, v, undirected=True):
-    """
-    Standardize edge representation for avoidance checks.
-
-    If undirected=True:
-        ('B', 'A') and ('A', 'B') become the same tuple.
-    """
+    # Standardize edge representation for avoidance checks.
+    # If undirected=True:
+    # ('B', 'A') and ('A', 'B') become the same tuple.
     if undirected:
         return tuple(sorted((u, v)))
     return (u, v)
 
 
 def parse_avoid_nodes(text):
-    """
-    Parse avoid nodes from a comma-separated string.
-    Example:
-        "A,B,C" -> {"A", "B", "C"}
-        "" -> set()
-    """
+    #Parse avoid nodes from a comma-separated string.
+    # Example:
+    #    "A,B,C" -> {"A", "B", "C"}
+    #    "" -> set()
     if text is None:
         return set()
 
@@ -193,13 +194,8 @@ def parse_avoid_nodes(text):
 
 
 def parse_avoid_edges(text, undirected=True):
-    """
-    Parse avoid edges from a comma-separated list like:
-        "A-B,B-C"
-
-    Returns:
-        set of normalized edge tuples
-    """
+    # Parse avoid edges from a comma-separated list like:
+    #    "A-B,B-C"
     if text is None:
         return set()
 

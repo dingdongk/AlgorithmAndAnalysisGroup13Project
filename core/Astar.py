@@ -1,4 +1,3 @@
-# core/Astar.py
 import pickle
 from core.Min_heap import MinHeap
 from core.Graph import normalize_edge
@@ -6,13 +5,7 @@ from core.Dijkstra import reconstruct_path, calculate_path_time
 
 
 def dijkstra_all_distances(graph, start, avoid_nodes=None, avoid_edges=None):
-    """
-    Run Dijkstra from one source and return shortest distance to every reachable node.
-    This is used for ALT landmark preprocessing.
-
-    Returns:
-        dict: {node: shortest_distance_from_start}
-    """
+    # Run Dijkstra from a single node to all nodes (mainly use for preprocessing landmark)
     if avoid_nodes is None:
         avoid_nodes = set()
     if avoid_edges is None:
@@ -24,12 +17,14 @@ def dijkstra_all_distances(graph, start, avoid_nodes=None, avoid_edges=None):
     heap = MinHeap()
     counter = 0
 
+    # Shortest distance to each node
     dist = {start: 0}
     heap.push((0, counter, start))
 
     while not heap.is_empty():
         curr_dist, _, u = heap.pop()
 
+        # Skip outdated entries
         if curr_dist > dist.get(u, float("inf")):
             continue
 
@@ -53,51 +48,22 @@ def dijkstra_all_distances(graph, start, avoid_nodes=None, avoid_edges=None):
 
 
 def choose_landmarks(graph, k=4):
-    """
-    To choose the landmarks (the nodes) for the graph, we will apply k-center expression
-    new_Landmark = Max(Min(distance(Landmark, Vertex))) with Landmark ∈ Landmarks
-    Vertex is from all vertices of the graph
-    Purpose: Using greedy approximation agolrithm to find to be farthest from the landmark inside
-    the list of landamarks.
-    landmarks = ['A', 'B'] find the new landmark farthest from A and B
-    :param k is the number of landmarks user want to find
-
-    """
+    # choose landmarks using greedy farthest-node strategy
     nodes = list(graph.nodes())
     if not nodes:
         return []
 
+    # Start with any node
     landmarks = [nodes[0]]
 
-    # min(k,len(nodes)) ensure that the component inside landmarks not reach out the node of the graph
-    # for example k = 4 but graph only have 3 node which mean len(nodes) = 3
-    # the landmarks can choose 3 landmarks only
-    # if we set like this (while len(landmarks) < k = 4:) it will become infinite loop
     while len(landmarks) < min(k, len(nodes)):
-        # For easy to understand: if k = 2 or 1, the first landmark always is node[0]
-        # If k = 2, the second landmark is choosing the largest distance from the first landmark
-        # Follow the expression: before we have the second landmark, we only have one landmark
-        # The expression will be reduced [new_landmark = Max(landmark to all vertices of the graph)]
-        # For example: this is the nodes of the graph ['J', 'B', 'G', 'T', 'E', 'D', 'A', 'H', 'F', 'L', 'C']
-        # First landmark J:{'J': 0, 'B': 10, 'G': 5, 'T': 8, 'E': 12, 'D': 16, 'A': 12, 'H': 26, 'F': 18, 'L': 27, 'C': 15}
-        # The second just choose the farthest distance from landmark(j) which is L
-        # L:{'J': 27, 'B': 17, 'G': 26, 'T': 29, 'E': 25, 'D': 11, 'A': 15, 'H': 15, 'F': 9, 'L': 0, 'C': 15}
-        # From the third landmark, we will follow the original expression
-        # new_Landmark = Max(Min(distance(Landmark, vertex))) with Landmark ∈ Landmarks["J","L"]
-        # The function will be Max(Min(distance('J','J'), distance('L','J')), Min(distance('J','B'),distance('L','B')), Min(...), ...)
-        # It will stop when we finish find all the node
-        # After that we have new_landmark is H
-        # If we continue, the number of distance from landmark to vertex inside Min() will increase equaly with number of landmark at the moment
-        # new_Landmark = Max(Min(distance(Landmark to all Vertex of the graph))) with Landmark ∈ Landmarks["J","L","H"]
-        # Max(Min(distance('J','J'), distance('L','J'), distance('H','J')), Min(distance('J','B'),distance('L','B'), distance('H','B')), Min(...), ...)
-
 
         best_node = None
         best_score = -1
 
         for node in nodes:
 
-            #Skip the node become landmarks already
+            # Skip the node become landmarks already
             if node in landmarks:
                 continue
 
@@ -108,13 +74,10 @@ def choose_landmarks(graph, k=4):
             # Greedy Approximation algorithm
             for lm in landmarks:
 
-                dist_map = dijkstra_all_distances(graph, lm) # return such as {'j':0, 'B':10,...}
-                distance = dist_map.get(node, float('inf')) # if don't have the node, return infinite. But the graph is connected so it cannot happen
-                # Finding the shortest distance of each landmark to current node of the graph
-                # for example node = B, landmarks = ['J','L']
-                # it will compare the minimum distance of (J to B) and (L to B)
-                # The minium is used to calculate the coverage (distance) of the landmark with that node
-                # The smaller of distance mean the landmark coverage that node good
+                dist_map = dijkstra_all_distances(graph, lm) 
+                distance = dist_map.get(node, float('inf')) 
+
+                # Find closest landmark to this node
                 if distance < min_distance_to_landmark:
                     min_distance_to_landmark = distance
 
@@ -137,17 +100,7 @@ def choose_landmarks(graph, k=4):
 
 
 def preprocess_landmarks(graph, landmarks):
-    """
-    Precompute shortest distances from each landmark to all nodes.
-
-    Returns:
-        dict:
-        {
-            landmark1: {nodeA: d1, nodeB: d2, ...},
-            landmark2: {nodeA: d1, nodeB: d2, ...},
-            ...
-        }
-    """
+    # Preprocess distances from each landmark to all nodes
     landmark_distances = {}
 
     for landmark in landmarks:
@@ -157,14 +110,7 @@ def preprocess_landmarks(graph, landmarks):
 
 
 def alt_heuristic(node, target, landmark_distances):
-    """
-    ALT heuristic using triangle inequality:
-
-        h(v) = max over landmarks L of |dist(L,target) - dist(L,v)|
-
-    Since some nodes may be unreachable from some landmarks, we only use
-    landmarks where both distances exist.
-    """
+    # ALT heuristic using triangle inequality
     best = 0
 
     for landmark, dist_map in landmark_distances.items():
@@ -177,18 +123,7 @@ def alt_heuristic(node, target, landmark_distances):
 
 
 def alt_distance(graph, start, end, landmark_distances, avoid_nodes=None, avoid_edges=None):
-    """
-    ALT search for shortest distance.
-
-    Returns:
-    {
-        "path": [...],
-        "total_distance": ...,
-        "total_time": 0,
-        "visited_count": ...
-    }
-    or None if no path exists.
-    """
+    # ALT search using precomputed landmarks
     if avoid_nodes is None:
         avoid_nodes = set()
     if avoid_edges is None:
@@ -203,18 +138,19 @@ def alt_distance(graph, start, end, landmark_distances, avoid_nodes=None, avoid_
     heap = MinHeap()
     counter = 0
 
+    # Actual distance
     g_cost = {start: 0}
     previous = {start: None}
     visited_count = 0
 
     start_h = alt_heuristic(start, end, landmark_distances)
-    heap.push((start_h, counter, start))
+    # f = g + h
+    heap.push((start_h, counter, start)) 
 
     while not heap.is_empty():
         f_cost, _, u = heap.pop()
         visited_count += 1
 
-        # stale entry protection:
         current_expected_f = g_cost.get(u, float("inf")) + alt_heuristic(u, end, landmark_distances)
         if f_cost > current_expected_f:
             continue
@@ -250,10 +186,7 @@ def alt_distance(graph, start, end, landmark_distances, avoid_nodes=None, avoid_
 
 
 def enrich_alt_result_with_time(graph, result, start_hour):
-    """
-    For a distance-optimal ALT result, compute actual total travel time
-    using the time-dependent edge lists.
-    """
+    # Compute actual travel time for ALT path
     if result is None:
         return None
 
@@ -261,6 +194,7 @@ def enrich_alt_result_with_time(graph, result, start_hour):
     return result
 
 def save_landmark_data(filename, landmarks, landmark_distances):
+    # Save ALT preprocessing to file
     data = {
         "landmarks": landmarks,
         "distances": landmark_distances
@@ -270,6 +204,7 @@ def save_landmark_data(filename, landmarks, landmark_distances):
 
 
 def load_landmark_data(filename):
+    # Load ALT preprocessing from file
     with open(filename, "rb") as f:
         data = pickle.load(f)
     return data["landmarks"], data["distances"]

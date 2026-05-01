@@ -1,6 +1,5 @@
-# main.py
 import os
-from core.Graph import load_graph_txt, parse_avoid_nodes, parse_avoid_edges
+from core.Graph import load_graph_txt, save_graph_txt, parse_avoid_nodes, parse_avoid_edges
 from core.Dijkstra import dijkstra_distance, dijkstra_time, enrich_distance_result_with_time
 from core.Astar import (
     choose_landmarks,
@@ -10,7 +9,6 @@ from core.Astar import (
     save_landmark_data,
     load_landmark_data,
 )
-
 
 GRAPH_FILE = "data/graph_by_road.txt"
 USE_ALT_FOR_DISTANCE = True
@@ -22,6 +20,36 @@ def format_path(path):
     if not path:
         return "No path"
     return " -> ".join(path)
+
+
+def update_edge_time_interactive(graph):
+    print("\n=== Update Edge Time List ===")
+
+    u = input("Enter source node (u): ").strip()
+    v = input("Enter destination node (v): ").strip()
+
+    if not graph.has_node(u) or not graph.has_node(v):
+        print("One or both nodes do not exist.")
+        return
+
+    print("Enter 24 time values (comma-separated):")
+
+    try:
+        time_input = input("Time list: ").strip()
+        new_times = [int(x.strip()) for x in time_input.split(",")]
+
+        if len(new_times) != 24:
+            print("Error: You must enter exactly 24 values.")
+            return
+
+        graph.update_edge_time_list(u, v, new_times, undirected=True)
+        print(f"Updated time list for edge: {u} <-> {v}")
+
+        save_graph_txt(graph, GRAPH_FILE)
+        print(f"Saved updated graph to {GRAPH_FILE}")
+
+    except ValueError:
+        print("Invalid input. Please enter integers only.")
 
 
 def print_result(title, result):
@@ -69,13 +97,13 @@ def get_user_input():
 def main():
     print("Loading graph...")
     graph = load_graph_txt(GRAPH_FILE, undirected=True)
-    print(f"Graph loaded successfully.")
+    print("Graph loaded successfully.")
     print(f"Nodes: {graph.node_count()}")
     print(f"Directed edges stored: {graph.edge_count()}")
 
     landmark_distances = None
-    landmarks = []
 
+    # ALT Preprocessing and Loading
     if USE_ALT_FOR_DISTANCE:
         if os.path.exists(ALT_DATA_FILE):
             print("\nLoading ALT preprocessed data...")
@@ -89,23 +117,42 @@ def main():
             print("Selected landmarks:", landmarks)
             print(f"ALT data saved to: {ALT_DATA_FILE}")
 
+    # Main Menu Loop
     while True:
         print("\n" + "=" * 60)
+        print("SMART PATH FINDER MENU")
+        print("1. Run path query")
+        print("2. Update edge time list")
+        print("3. Exit")
 
-        try:
-            source, destination, start_hour, avoid_nodes, avoid_edges = get_user_input()
+        choice = input("Choose an option (1-3): ").strip()
 
-            if not graph.has_node(source):
-                print(f"Source node '{source}' does not exist in the graph.")
-                continue
+        if choice == "1":
+            try:
+                source, destination, start_hour, avoid_nodes, avoid_edges = get_user_input()
 
-            if not graph.has_node(destination):
-                print(f"Destination node '{destination}' does not exist in the graph.")
-                continue
+                if not graph.has_node(source):
+                    print(f"Source node '{source}' does not exist.")
+                    continue
 
-            # Shortest distance path
-            if USE_ALT_FOR_DISTANCE and landmark_distances is not None:
-                distance_result = alt_distance(
+                if not graph.has_node(destination):
+                    print(f"Destination node '{destination}' does not exist.")
+                    continue
+
+                # Dijkstra Distance
+                dijkstra_dist_result = dijkstra_distance(
+                    graph,
+                    source,
+                    destination,
+                    avoid_nodes=avoid_nodes,
+                    avoid_edges=avoid_edges,
+                )
+                dijkstra_dist_result = enrich_distance_result_with_time(
+                    graph, dijkstra_dist_result, start_hour
+                )
+
+                # ALT Distance
+                alt_dist_result = alt_distance(
                     graph,
                     source,
                     destination,
@@ -113,39 +160,36 @@ def main():
                     avoid_nodes=avoid_nodes,
                     avoid_edges=avoid_edges,
                 )
-                distance_result = enrich_alt_result_with_time(graph, distance_result, start_hour)
-                distance_title = "Shortest Distance Path (ALT)"
-            else:
-                distance_result = dijkstra_distance(
+                alt_dist_result = enrich_alt_result_with_time(
+                    graph, alt_dist_result, start_hour
+                )
+
+                # Time
+                time_result = dijkstra_time(
                     graph,
                     source,
                     destination,
+                    start_hour,
                     avoid_nodes=avoid_nodes,
                     avoid_edges=avoid_edges,
                 )
-                distance_result = enrich_distance_result_with_time(graph, distance_result, start_hour)
-                distance_title = "Shortest Distance Path (Dijkstra)"
 
-            # Shortest time path
-            time_result = dijkstra_time(
-                graph,
-                source,
-                destination,
-                start_hour,
-                avoid_nodes=avoid_nodes,
-                avoid_edges=avoid_edges,
-            )
+                print_result("Shortest Distance Path (Dijkstra)", dijkstra_dist_result)
+                print_result("Shortest Distance Path (ALT)", alt_dist_result)
+                print_result("Shortest Time Path (Dijkstra)", time_result)
 
-            print_result(distance_title, distance_result)
-            print_result("Shortest Time Path (Dijkstra)", time_result)
+            except Exception as e:
+                print("Error:", e)
 
-        except Exception as e:
-            print("Error:", e)
+        elif choice == "2":
+            update_edge_time_interactive(graph)
 
-        again = input("\nDo you want to run another query? (y/n): ").strip().lower()
-        if again != "y":
+        elif choice == "3":
             print("Exiting Smart Path Finder.")
             break
+
+        else:
+            print("Invalid option. Please choose 1, 2, or 3.")
 
 
 if __name__ == "__main__":

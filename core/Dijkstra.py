@@ -1,14 +1,9 @@
-# core/Dijkstra.py
-
 from core.Min_heap import MinHeap
 from core.Graph import normalize_edge
 
 
 def reconstruct_path(previous, start, end):
-    """
-    Reconstruct path from start to end using predecessor map.
-    Returns list of nodes, or [] if no path exists.
-    """
+    # Rebuild path from end to start using previous map
     if start == end:
         return [start]
 
@@ -31,9 +26,7 @@ def reconstruct_path(previous, start, end):
 
 
 def calculate_path_distance(graph, path):
-    """
-    Sum the distance along a given path.
-    """
+    # Calculate travel distance
     if not path or len(path) == 1:
         return 0
 
@@ -48,13 +41,7 @@ def calculate_path_distance(graph, path):
 
 
 def calculate_path_time(graph, path, start_hour):
-    """
-    Sum travel time along a path using time-dependent edge weights.
-
-    Assumption:
-    - time_list values are in minutes
-    - the hour bucket changes when elapsed minutes cross a full hour boundary
-    """
+    # Calculate travel time using hourly traffic
     if not path or len(path) == 1:
         return 0
 
@@ -68,6 +55,7 @@ def calculate_path_time(graph, path, start_hour):
         if edge is None:
             raise ValueError(f"Missing edge in path: {u} -> {v}")
 
+        # Calculate current hour based on elapsed time
         current_hour = (start_hour + (total_minutes // 60)) % 24
         total_minutes += edge.time_list[current_hour]
 
@@ -75,18 +63,7 @@ def calculate_path_time(graph, path, start_hour):
 
 
 def dijkstra_distance(graph, start, end, avoid_nodes=None, avoid_edges=None):
-    """
-    Standard Dijkstra minimizing total distance.
-
-    Returns a dictionary:
-    {
-        "path": [...],
-        "total_distance": ...,
-        "total_time": ...,
-        "visited_count": ...
-    }
-    or None if no path exists.
-    """
+    # Dijkstra that minimizes travel time
     if avoid_nodes is None:
         avoid_nodes = set()
     if avoid_edges is None:
