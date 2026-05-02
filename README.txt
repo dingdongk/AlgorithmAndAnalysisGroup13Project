@@ -20,7 +20,7 @@ Dynamic updates of traffic (time list)
 2. Environment Setup
 Requirements:
 Python 3.8 or higher
-No external libraries required
+Pickle Library
 
 3. How to Run the Program
 - Clone the repo
